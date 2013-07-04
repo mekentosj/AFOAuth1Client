@@ -199,7 +199,7 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
     [parameters setValue:kAFOAuth1Version forKey:@"oauth_version"];
     [parameters setValue:NSStringFromAFOAuthSignatureMethod(self.signatureMethod) forKey:@"oauth_signature_method"];
     [parameters setValue:self.key forKey:@"oauth_consumer_key"];
-    [parameters setValue:[[NSNumber numberWithInteger:floor([[NSDate date] timeIntervalSince1970])] stringValue] forKey:@"oauth_timestamp"];
+    [parameters setValue:[[NSNumber numberWithInteger:floorf([[NSDate date] timeIntervalSince1970])] stringValue] forKey:@"oauth_timestamp"];
     [parameters setValue:AFNounce() forKey:@"oauth_nonce"];
 
     if (self.realm) {
@@ -282,7 +282,7 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
             currentRequestToken.verifier = [AFParametersFromQueryString([url query]) valueForKey:@"oauth_verifier"];
 
             [self acquireOAuthAccessTokenWithPath:accessTokenPath requestToken:currentRequestToken accessMethod:accessMethod success:^(AFOAuth1Token * accessToken, id responseObject) {
-                self.applicationLaunchNotificationObserver = nil;
+                
                 if (accessToken) {
                     self.accessToken = accessToken;
                     
@@ -295,7 +295,6 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
                     }
                 }
             } failure:^(NSError *error) {
-                self.applicationLaunchNotificationObserver = nil;
                 if (failure) {
                     failure(error);
                 }
@@ -469,6 +468,7 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
 @synthesize verifier = _verifier;
 @synthesize expiration = _expiration;
 @synthesize renewable = _renewable;
+@dynamic expired;
 
 - (id)initWithQueryString:(NSString *)queryString {
     if (!queryString || [queryString length] == 0) {
@@ -476,22 +476,34 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
     }
 
     NSDictionary *attributes = AFParametersFromQueryString(queryString);
-    
-    if (attributes.count == 0) {
-        return nil;
-    }
+	return [self initWithParameters:attributes];
+  
+}
 
-    NSDate *expiration = nil;
-    if (attributes[@"oauth_token_duration"]) {
-        expiration = [NSDate dateWithTimeIntervalSinceNow:[[attributes objectForKey:@"oauth_token_duration"] doubleValue]];
-    }
-
-    BOOL canBeRenewed = NO;
-    if (attributes[@"oauth_token_renewable"]) {
-        canBeRenewed = AFQueryStringValueIsTrue([attributes objectForKey:@"oauth_token_renewable"]);
-    }
-
-    return [self initWithKey:[attributes objectForKey:@"oauth_token"] secret:[attributes objectForKey:@"oauth_token_secret"] session:[attributes objectForKey:@"oauth_session_handle"] expiration:expiration renewable:canBeRenewed];
+- (id)initWithParameters:(NSDictionary *)attributes
+{
+	if( !attributes )
+		return nil;
+	
+	if (attributes.count == 0) {
+		return nil;
+	}
+	
+	NSDate *expiration = nil;
+	if (attributes[@"oauth_token_duration"]) {
+		expiration = [NSDate dateWithTimeIntervalSinceNow:[[attributes objectForKey:@"oauth_token_duration"] doubleValue]];
+	}
+	
+	BOOL canBeRenewed = NO;
+	if (attributes[@"oauth_token_renewable"]) {
+		canBeRenewed = AFQueryStringValueIsTrue([attributes objectForKey:@"oauth_token_renewable"]);
+	}
+	
+	// @"oauth_token_secret"
+	
+	return [self initWithKey:[attributes objectForKey:@"oauth_token"] secret:[attributes objectForKey:@"oauth_secret"] session:[attributes objectForKey:@"oauth_session_handle"] expiration:expiration renewable:canBeRenewed];
+	
+	
 }
 
 - (id)initWithKey:(NSString *)key
@@ -515,10 +527,6 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
     self.renewable = canBeRenewed;
     
     return self;
-}
-
-- (BOOL)isExpired{
-    return [self.expiration compare:[NSDate date]] == NSOrderedDescending;
 }
 
 #pragma mark - NSCoding
