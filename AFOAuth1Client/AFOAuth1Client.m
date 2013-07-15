@@ -501,7 +501,11 @@ static inline NSString * AFHMACSHA1Signature(NSURLRequest *request, NSString *co
 	
 	// @"oauth_token_secret"
 	
-	return [self initWithKey:[attributes objectForKey:@"oauth_token"] secret:[attributes objectForKey:@"oauth_secret"] session:[attributes objectForKey:@"oauth_session_handle"] expiration:expiration renewable:canBeRenewed];
+	return [self initWithKey:[attributes objectForKey:@"oauth_token"]
+                      secret:[attributes objectForKey:@"oauth_secret"] ?
+                                [attributes objectForKey:@"oauth_secret"] :
+                                [attributes objectForKey:@"oauth_token_secret"]
+                     session:[attributes objectForKey:@"oauth_session_handle"] expiration:expiration renewable:canBeRenewed];
 	
 	
 }
